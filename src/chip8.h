@@ -1,0 +1,56 @@
+#pragma once
+#include <SDL2/SDL_render.h>
+
+// chip8 fontset
+static unsigned char fontset[80] = {
+	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+	0x20, 0x60, 0x20, 0x20, 0x70, // 1
+	0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+	0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+	0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+	0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+	0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+	0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+	0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+	0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+	0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+	0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+	0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+	0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
+class chip8 {
+public:
+	chip8();
+	~chip8();
+
+	void init();
+	void cycle(); // emulate a single cycle
+	void draw(SDL_Texture* texture, SDL_Renderer* renderer); // draw the graphics buffer to the screen
+	void input(); // handle input events
+
+	bool load_rom(const char* filename);
+
+	static constexpr int screen_width = 64;
+	static constexpr int screen_height = 32;
+private:
+	unsigned short opcode;		// current opcode
+	unsigned char memory[4096]; // 4k memory
+	unsigned char V[16];		// 16 general purpose registers
+	unsigned short I;			// index register
+	unsigned short pc;			// program counter
+
+	unsigned char gfx[64 * 32]; // graphics buffer
+	
+	unsigned short stack[16];	// stack
+	unsigned short sp;			// stack pointer
+
+	unsigned char key[16];		// keypad
+
+	unsigned char delay_timer;	// delay timer
+	unsigned char sound_timer;	// sound timer
+
+	bool draw_flag;				// flag to indicate if the screen should be redrawn
+};
