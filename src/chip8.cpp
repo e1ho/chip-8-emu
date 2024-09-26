@@ -17,27 +17,23 @@ void chip8::init() {
 	sp = 0;		// reset stack pointer
 
 	// clear display
-	for (int i = 0; i < 64 * 32; ++i) 
-		gfx[i] = 0;
+	std::fill(std::begin(gfx), std::end(gfx), 0);
 
 	// clear stack, V, and key registers
-	for (int i = 0; i < 16; ++i) {
-		stack[i] = 0;
-		V[i] = 0;
-		key[i] = 0;
-	}
+	std::fill(std::begin(stack), std::end(stack), 0);
+	std::fill(std::begin(V), std::end(V), 0);
+	std::fill(std::begin(key), std::end(key), 0);
 
 	// clear memory
-	for (int i = 0; i < 4096; ++i) 
-		memory[i] = 0;
+	std::fill(std::begin(memory), std::end(memory), 0);
 
 	// load fontset
-	for (int i = 0; i < 80; ++i) 
-		memory[i] = fontset[i];
+	std::copy(std::begin(fontset), std::end(fontset), std::begin(memory));
 
 	// reset timers
 	delay_timer = 0;
 	sound_timer = 0;
+	should_draw = false;
 }
 
 void chip8::cycle() {
@@ -49,9 +45,8 @@ void chip8::cycle() {
 	case 0x0000:
 		switch (opcode & 0x00FF) {
 		case 0x00E0: // 00E0: clear screen
-			for (int i = 0; i < 64 * 32; ++i)
-				gfx[i] = 0;
-			draw_flag = true;
+			std::fill(std::begin(gfx), std::end(gfx), 0);
+			should_draw = true;
 			pc += 2;
 			break;
 		case 0x00EE: // 00EE: return from subroutine
@@ -181,18 +176,18 @@ void chip8::cycle() {
 		unsigned const short height = opcode & 0x000F;
 
 		V[0xF] = 0;
-		for (int yline = 0; yline < height; yline++) {
-			unsigned short pixel = memory[I + yline];
-			for (int xline = 0; xline < 8; xline++) {
-				if ((pixel & (0x80 >> xline)) != 0) {
-					if (gfx[(x + xline + ((y + yline) * 64))] == 1)
+		for (int y_line = 0; y_line < height; y_line++) {
+			const unsigned short pixel = memory[I + y_line];
+			for (int x_line = 0; x_line < 8; x_line++) {
+				if ((pixel & (0x80 >> x_line)) != 0) {
+					if (gfx[(x + x_line + ((y + y_line) * 64))] == 1)
 						V[0xF] = 1;
-					gfx[x + xline + ((y + yline) * 64)] ^= 1;
+					gfx[x + x_line + ((y + y_line) * 64)] ^= 1;
 				}
 			}
 		}
 
-		draw_flag = true; 
+		should_draw = true; 
 		pc += 2;
 	}
 	break;
@@ -289,6 +284,7 @@ void chip8::cycle() {
 		break;
 	}
 
+	// update timers
 	if (delay_timer > 0)
 		--delay_timer;
 
@@ -298,75 +294,51 @@ void chip8::cycle() {
 }
 
 void chip8::draw(SDL_Texture* texture, SDL_Renderer* renderer) {
-	if (draw_flag) {
-		int scale = 10;
-		uint32_t pixels[screen_width * screen_height];
+	if (should_draw) {
+		std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> pixels;
 
-		for (int y = 0; y < screen_height; ++y) {
-			for (int x = 0; x < screen_width; ++x) {
-				int i = x + (y * screen_width);
-				if (gfx[i] == 0)
-					pixels[i] = 0xFF000000; // black
-				else
-					pixels[i] = 0xFFFFFFFF; // white
-			}
+		for (int i = 0; i < screen_width * screen_height; ++i) {
+			pixels[i] = gfx[i] ? 0xFFFFFFFF : 0xFF000000;
 		}
 
-		SDL_UpdateTexture(texture, nullptr, pixels, screen_width * sizeof(uint32_t));
+		SDL_UpdateTexture(texture, nullptr, pixels.data(), screen_width * sizeof(uint32_t));
 		SDL_RenderClear(renderer);
-		SDL_Rect destRect = {0, 0, screen_width * scale, screen_height * scale};
-		SDL_RenderCopy(renderer, texture, nullptr, &destRect);
+		constexpr SDL_Rect dest_rect = {0, 0, screen_width * window_scale, screen_height * window_scale};
+		SDL_RenderCopy(renderer, texture, nullptr, &dest_rect);
 		SDL_RenderPresent(renderer);
 
 		// reset the draw flag
-		draw_flag = false;
+		should_draw = false;
 	}
 }
-
-SDL_Keycode keymap[16] = {
-	SDLK_x,  // 0
-	SDLK_1,  // 1
-	SDLK_2,  // 2
-	SDLK_3,  // 3
-	SDLK_q,  // 4
-	SDLK_w,  // 5
-	SDLK_e,  // 6
-	SDLK_a,  // 7
-	SDLK_s,  // 8
-	SDLK_d,  // 9
-	SDLK_z,  // A
-	SDLK_c,  // B
-	SDLK_4,  // C
-	SDLK_r,  // D
-	SDLK_f,  // E
-	SDLK_v,  // F
-};
 
 void chip8::input() {
 	SDL_Event e;
 
+	static constexpr std::array<SDL_Keycode, 16> keymap = {
+		SDLK_x, SDLK_1, SDLK_2, SDLK_3,
+		SDLK_q, SDLK_w, SDLK_e, SDLK_a,
+		SDLK_s, SDLK_d, SDLK_z, SDLK_c,
+		SDLK_4, SDLK_r, SDLK_f, SDLK_v
+	};
+
 	while (SDL_PollEvent(&e)) {
 		if (e.type == SDL_QUIT)
-			exit(0);
+			quit = true;
 
 		if (e.type == SDL_KEYDOWN) {
 			if (e.key.keysym.sym == SDLK_ESCAPE)
-				exit(0);
+				quit = true;
 
-			for (int i = 0; i < 16; ++i) {
-				if (e.key.keysym.sym == keymap[i]) {
+			for (int i = 0; i < 16; ++i)
+				if (e.key.keysym.sym == keymap[i])
 					key[i] = 1;
-				}
-			}
 		}
 
-		if (e.type == SDL_KEYUP) {
-			for (int i = 0; i < 16; ++i) {
-				if (e.key.keysym.sym == keymap[i]) {
+		if (e.type == SDL_KEYUP) 
+			for (int i = 0; i < 16; ++i)
+				if (e.key.keysym.sym == keymap[i])
 					key[i] = 0;
-				}
-			}
-		}
 	}
 }
 

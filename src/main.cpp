@@ -25,15 +25,23 @@ int main(const int argc, char* argv[]) {
 		return 1;
 	}
 
-	SDL_Window* window = SDL_CreateWindow("chip8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, c8.screen_width * 10, c8.screen_height * 10, SDL_WINDOW_SHOWN);
+	SDL_Window* window = SDL_CreateWindow("chip8", 
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 
+		chip8::screen_width * chip8::window_scale, 
+		chip8::screen_height * chip8::window_scale, 
+		SDL_WINDOW_SHOWN);
+
 	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, c8.screen_width, c8.screen_height);
+	SDL_Texture* texture = SDL_CreateTexture(renderer, 
+		SDL_PIXELFORMAT_ARGB8888, 
+		SDL_TEXTUREACCESS_STREAMING, 
+		chip8::screen_width, chip8::screen_height);
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 	SDL_RenderClear(renderer);
 	SDL_RenderPresent(renderer);
 
-	while (true) {
+	while (!c8.should_quit()) {
 		c8.input();
 		c8.cycle();
 
@@ -41,4 +49,11 @@ int main(const int argc, char* argv[]) {
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(4));
 	}
+
+	SDL_DestroyTexture(texture);
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+
+	return 0;
 }
