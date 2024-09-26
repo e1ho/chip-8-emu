@@ -7,10 +7,12 @@
 #include "chip8.h"
 
 chip8::chip8() = default;
-chip8::~chip8() = default;
+chip8::~chip8() {
+	SDL_DestroyTexture(front_texture);
+	SDL_DestroyTexture(back_texture);
+}
 
-// initialize registers and memory once
-void chip8::init() {
+void chip8::init(SDL_Renderer* renderer) {
 	pc = 0x200; // program counter starts at 0x200
 	opcode = 0; // reset current opcode
 	I = 0;		// reset index register
@@ -29,6 +31,15 @@ void chip8::init() {
 
 	// load fontset
 	std::copy(std::begin(fontset), std::end(fontset), std::begin(memory));
+
+	front_buffer.fill(0xFF000000); // set all pixels to black
+	back_buffer.fill(0xFF000000);
+
+	// create textures
+	front_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, 
+		SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
+	back_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, 
+		SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
 
 	// reset timers
 	delay_timer = 0;
@@ -283,29 +294,21 @@ void chip8::cycle() {
 		std::cerr << "unknown opcode: 0x" << std::hex << opcode << std::endl;
 		break;
 	}
-
-	// update timers
-	if (delay_timer > 0)
-		--delay_timer;
-
-	// todo: add sound
-	if (sound_timer > 0)
-		--sound_timer;
 }
 
-void chip8::draw(SDL_Texture* texture, SDL_Renderer* renderer) {
+void chip8::draw(SDL_Renderer* renderer) {
 	if (should_draw) {
-		std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> pixels;
+		for (int i = 0; i < screen_width * screen_height; ++i)
+			back_buffer[i] = gfx[i] ? 0xFFFFFFFF : 0xFF000000;
 
-		for (int i = 0; i < screen_width * screen_height; ++i) {
-			pixels[i] = gfx[i] ? 0xFFFFFFFF : 0xFF000000;
-		}
-
-		SDL_UpdateTexture(texture, nullptr, pixels.data(), screen_width * sizeof(uint32_t));
+		SDL_UpdateTexture(back_texture, nullptr, back_buffer.data(), screen_width * sizeof(uint32_t));
 		SDL_RenderClear(renderer);
-		constexpr SDL_Rect dest_rect = {0, 0, screen_width * window_scale, screen_height * window_scale};
-		SDL_RenderCopy(renderer, texture, nullptr, &dest_rect);
+		SDL_RenderCopy(renderer, back_texture, nullptr, nullptr);
 		SDL_RenderPresent(renderer);
+
+		// swap buffers and textures
+		std::swap(front_buffer, back_buffer);
+		std::swap(front_texture, back_texture);
 
 		// reset the draw flag
 		should_draw = false;
@@ -340,6 +343,15 @@ void chip8::input() {
 				if (e.key.keysym.sym == keymap[i])
 					key[i] = 0;
 	}
+}
+
+void chip8::update_timers() {
+	if (delay_timer > 0)
+		--delay_timer;
+
+	// todo: implement sound
+	if (sound_timer > 0)
+		--sound_timer;
 }
 
 bool chip8::load_rom(const char* filename) {

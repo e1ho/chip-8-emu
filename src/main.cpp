@@ -12,45 +12,47 @@ int main(const int argc, char* argv[]) {
 		return 1;
 	}
 
+	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
+		std::cerr << "sdl failed to initialize. error: " << SDL_GetError() << std::endl;
+		return 1;
+	}
+
+	SDL_Window* window = SDL_CreateWindow("chip-8 emulator",
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		chip8::screen_width * chip8::window_scale,
+		chip8::screen_height * chip8::window_scale,
+		SDL_WINDOW_SHOWN);
+
+	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
 	chip8 c8;
-	c8.init();
+	c8.init(renderer);
 
 	if (!c8.load_rom(argv[1])) {
 		std::cerr << "failed to load rom: " << argv[1] << std::endl;
 		return 1;
 	}
 
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
-		std::cerr << "sdl failed to initialize. error: " << SDL_GetError() << std::endl;
-		return 1;
-	}
-
-	SDL_Window* window = SDL_CreateWindow("chip8", 
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 
-		chip8::screen_width * chip8::window_scale, 
-		chip8::screen_height * chip8::window_scale, 
-		SDL_WINDOW_SHOWN);
-
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	SDL_Texture* texture = SDL_CreateTexture(renderer, 
-		SDL_PIXELFORMAT_ARGB8888, 
-		SDL_TEXTUREACCESS_STREAMING, 
-		chip8::screen_width, chip8::screen_height);
-
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-	SDL_RenderClear(renderer);
-	SDL_RenderPresent(renderer);
-
 	while (!c8.should_quit()) {
+		auto frame_start = std::chrono::high_resolution_clock::now();
+
 		c8.input();
-		c8.cycle();
 
-		c8.draw(texture, renderer);
+		for (int i = 0; i < 10; ++i)
+			c8.cycle(); // emulate 10 cycles per frame
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(4));
+		c8.update_timers(); // update timers at 60hz
+
+		c8.draw(renderer);
+
+		// calculate time spent processing this frame
+		auto frame_end = std::chrono::high_resolution_clock::now();
+		auto frame_duration = std::chrono::duration_cast<std::chrono::microseconds>(frame_end - frame_start);
+
+		// sleep for the remaining time to maintain 60fps
+		std::this_thread::sleep_for(std::chrono::microseconds(16667) - frame_duration);
 	}
 
-	SDL_DestroyTexture(texture);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();

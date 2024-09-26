@@ -11,10 +11,11 @@ public:
 	chip8();
 	~chip8();
 
-	void init();
-	void cycle(); // emulate a single cycle
-	void draw(SDL_Texture* texture, SDL_Renderer* renderer); // draw the graphics buffer to the screen
-	void input(); // handle input events
+	void init(SDL_Renderer* renderer);
+	void cycle();					   // emulate a single cycle
+	void draw(SDL_Renderer* renderer); // draw the graphics buffer to the screen
+	void input();					   // handle input events
+	void update_timers();			   // update the delay and sound timers
 
 	bool load_rom(const char* filename);
 
@@ -39,6 +40,13 @@ private:
 		0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
 		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 	};
+
+	// double buffer
+	std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> front_buffer;
+	std::array<uint32_t, static_cast<size_t>(screen_width)* screen_height> back_buffer;
+
+	SDL_Texture* front_texture;
+	SDL_Texture* back_texture;
 
 	unsigned short opcode;		// current opcode
 	unsigned char memory[4096]; // 4k memory
