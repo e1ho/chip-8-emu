@@ -136,9 +136,11 @@
   <ItemGroup>
     <ClCompile Include="chip8.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="opcode.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chip8.h" />
+    <ClInclude Include="opcode.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

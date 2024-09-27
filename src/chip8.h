@@ -2,6 +2,8 @@
 #include <SDL2/SDL_render.h>
 #include <array>
 
+#include "opcode.h"
+
 class chip8 {
 public:
 	static constexpr int screen_width = 64;
@@ -19,10 +21,28 @@ public:
 
 	bool load_rom(const char* filename);
 
-	bool should_quit() const { return quit; }
+	bool should_quit() const { return quit_; }
+
+	uint8_t memory_[4096];  // 4k memory
+	uint8_t v_[16];			// 16 general purpose registers
+	uint16_t i_;			// index register
+	uint16_t pc_;			// program counter
+
+	uint16_t stack_[16];	// stack
+	uint16_t sp_;			// stack pointer
+
+	uint8_t gfx_[screen_width * 
+		screen_height];		// graphics buffer
+
+	uint8_t key_[16];		// keypad
+
+	uint8_t delay_timer_;	// delay timer
+	uint8_t sound_timer_;	// sound timer
+
+	bool should_draw_;		// flag to indicate if the screen should be redrawn
 private:
 	// chip8 fontset
-	static constexpr std::array<uint8_t, 80> fontset = {
+	static constexpr std::array<uint8_t, 80> fontset_ = {
 		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 		0x20, 0x60, 0x20, 0x20, 0x70, // 1
 		0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -41,29 +61,15 @@ private:
 		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 	};
 
+	opcode opcode_handler_;
+	uint16_t opcode_; // current opcode
+
 	// double buffer
-	std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> front_buffer;
-	std::array<uint32_t, static_cast<size_t>(screen_width)* screen_height> back_buffer;
+	std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> front_buffer_;
+	std::array<uint32_t, static_cast<size_t>(screen_width)* screen_height> back_buffer_;
 
-	SDL_Texture* front_texture;
-	SDL_Texture* back_texture;
+	SDL_Texture* front_texture_;
+	SDL_Texture* back_texture_;
 
-	unsigned short opcode;		// current opcode
-	unsigned char memory[4096]; // 4k memory
-	unsigned char V[16];		// 16 general purpose registers
-	unsigned short I;			// index register
-	unsigned short pc;			// program counter
-
-	unsigned char gfx[screen_width * screen_height]; // graphics buffer
-	
-	unsigned short stack[16];	// stack
-	unsigned short sp;			// stack pointer
-
-	unsigned char key[16];		// keypad
-
-	unsigned char delay_timer;	// delay timer
-	unsigned char sound_timer;	// sound timer
-
-	bool should_draw;			// flag to indicate if the screen should be redrawn
-	bool quit;					// flag to indicate if the program should quit
+	bool quit_;	 // flag to indicate if the program should quit
 };

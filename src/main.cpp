@@ -7,29 +7,36 @@
 #include "chip8.h"
 
 int main(const int argc, char* argv[]) {
-	if (argc != 2) {
-		std::cerr << "usage: " << argv[0] << " <rom file>" << std::endl;
+	if (argc != 2)
 		return 1;
-	}
 
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
-		std::cerr << "sdl failed to initialize. error: " << SDL_GetError() << std::endl;
+	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return 1;
-	}
 
 	SDL_Window* window = SDL_CreateWindow("chip-8 emulator",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		chip8::screen_width * chip8::window_scale,
 		chip8::screen_height * chip8::window_scale,
 		SDL_WINDOW_SHOWN);
+	if (!window) {
+		SDL_Quit();
+		return 1;
+	}
 
 	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+	if (!renderer) {
+		SDL_DestroyWindow(window);
+		SDL_Quit();
+		return 1;
+	}
 
 	chip8 c8;
 	c8.init(renderer);
 
 	if (!c8.load_rom(argv[1])) {
-		std::cerr << "failed to load rom: " << argv[1] << std::endl;
+		SDL_DestroyRenderer(renderer);
+		SDL_DestroyWindow(window);
+		SDL_Quit();
 		return 1;
 	}
 
