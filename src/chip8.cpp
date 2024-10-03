@@ -8,8 +8,7 @@
 
 chip8::chip8() = default;
 chip8::~chip8() {
-	SDL_DestroyTexture(front_texture_);
-	SDL_DestroyTexture(back_texture_);
+	SDL_DestroyTexture(texture_);
 }
 
 void chip8::init(SDL_Renderer* renderer) {
@@ -32,13 +31,7 @@ void chip8::init(SDL_Renderer* renderer) {
 	// load fontset into memory
 	std::copy(std::begin(fontset_), std::end(fontset_), std::begin(memory_));
 
-	front_buffer_.fill(0xFF000000); // set all pixels to black
-	back_buffer_.fill(0xFF000000);
-
-	// create textures for double buffering
-	front_texture_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, 
-		SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
-	back_texture_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, 
+	texture_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
 
 	// reset timers and flags
@@ -57,19 +50,17 @@ void chip8::cycle() {
 
 void chip8::draw(SDL_Renderer* renderer) {
 	if (should_draw_) {
+		std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> buffer;
+
 		// copy the gfx buffer to the back buffer
 		for (int i = 0; i < screen_width * screen_height; ++i)
-			back_buffer_[i] = gfx_[i] ? 0xFFFFFFFF : 0xFF000000;
+			buffer[i] = gfx_[i] ? 0xFFFFFFFF : 0xFF000000;
 
 		// update the texture with new pixel data, clear the renderer, and render the texture
-		SDL_UpdateTexture(back_texture_, nullptr, back_buffer_.data(), screen_width * sizeof(uint32_t));
+		SDL_UpdateTexture(texture_, nullptr, buffer.data(), screen_width * sizeof(uint32_t));
 		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, back_texture_, nullptr, nullptr);
+		SDL_RenderCopy(renderer, texture_, nullptr, nullptr);
 		SDL_RenderPresent(renderer);
-
-		// swap buffers and textures for double buffering
-		std::swap(front_buffer_, back_buffer_);
-		std::swap(front_texture_, back_texture_);
 
 		// reset the draw flag
 		should_draw_ = false;

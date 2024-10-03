@@ -64,12 +64,7 @@ private:
 	opcode opcode_handler_;
 	uint16_t opcode_; // current opcode
 
-	// double buffer
-	std::array<uint32_t, static_cast<size_t>(screen_width) * screen_height> front_buffer_;
-	std::array<uint32_t, static_cast<size_t>(screen_width)* screen_height> back_buffer_;
-
-	SDL_Texture* front_texture_;
-	SDL_Texture* back_texture_;
+	SDL_Texture* texture_; 
 
 	bool quit_;	 // flag to indicate if the program should quit
 };
