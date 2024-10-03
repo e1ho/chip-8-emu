@@ -34,8 +34,8 @@ private:
 	void init();
 
 	// helper functions
-	static opcode_func table_dispatch(const std::unordered_map<uint8_t, opcode_func>& table);
-	static opcode_func table_dispatch(const std::unordered_map<uint16_t, opcode_func>& table);
+	static opcode_func table_dispatch(const std::unordered_map<uint8_t, opcode_func>& table, std::function<uint8_t(const decoded_opcode&)> extractor);
+	static opcode_func table_dispatch(const std::unordered_map<uint16_t, opcode_func>& table, std::function<uint16_t(const decoded_opcode&)> extractor);
 
 	static void skip_next_instruction(chip8& c8);
 	static void exec_next_instruction(chip8& c8);

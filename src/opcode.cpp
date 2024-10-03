@@ -1,7 +1,6 @@
 #include <random>
 
 #include "opcode.h"
-
 #include "chip8.h"
 
 // thread_local ensures that each thread has its own instance of the random number generator
@@ -27,32 +26,32 @@ decoded_opcode decode_opcode(const uint16_t opcode) {
 void opcode::execute(chip8& c8, const uint16_t opcode) const {
     const decoded_opcode decoded = decode_opcode(opcode);
     const uint8_t index = decoded.op;
+
     const auto it = main_table_.find(index);
     if (it != main_table_.end())
         it->second(c8, decoded);
-    
 }
 
 void opcode::init() {
     // initialize main table
     main_table_ = {
-		{ 0x0, op_00E0 },
-		{ 0x1, op_1nnn },
+		{ 0x0, table_dispatch(table0_, [](const decoded_opcode& decoded) { return decoded.nn; }) },
+        { 0x1, op_1nnn },
 		{ 0x2, op_2nnn },
 		{ 0x3, op_3xnn },
 		{ 0x4, op_4xnn },
 		{ 0x5, op_5xy0 },
 		{ 0x6, op_6xnn },
 		{ 0x7, op_7xnn },
-		{ 0x8, table_dispatch(table8_) },
-		{ 0x9, op_9xy0 },
+		{ 0x8, table_dispatch(table8_, [](const decoded_opcode& decoded) { return decoded.n; }) },
+        { 0x9, op_9xy0 },
 		{ 0xA, op_Annn },
 		{ 0xB, op_Bnnn },
 		{ 0xC, op_Cxnn },
 		{ 0xD, op_Dxyn },
-		{ 0xE, table_dispatch(table_e_) },
-		{ 0xF, table_dispatch(table_f_) }
-	};
+		{ 0xE, table_dispatch(table_e_, [](const decoded_opcode& decoded) { return decoded.nn; }) },
+        { 0xF, table_dispatch(table_f_, [](const decoded_opcode& decoded) { return decoded.nn; }) },
+    };
 
     // initialize sub tables
     table0_ = {
@@ -91,18 +90,20 @@ void opcode::init() {
 }
 
 // helper functions
-opcode::opcode_func opcode::table_dispatch(const std::unordered_map<uint8_t, opcode_func>& table) {
-    return [&table](chip8& c8, const decoded_opcode& decoded) {
-        auto it = table.find(decoded.n);
+opcode::opcode_func opcode::table_dispatch(const std::unordered_map<uint8_t, opcode_func>& table, std::function<uint8_t(const decoded_opcode&)> extractor) {
+    return [&table, extractor](chip8& c8, const decoded_opcode& decoded) {
+	    const uint8_t key = extractor(decoded);
+	    const auto it = table.find(key);
         if (it != table.end()) {
             it->second(c8, decoded);
         }
         };
 }
 
-opcode::opcode_func opcode::table_dispatch(const std::unordered_map<uint16_t, opcode_func>& table) {
-    return [&table](chip8& c8, const decoded_opcode& decoded) {
-        auto it = table.find(decoded.nn);
+opcode::opcode_func opcode::table_dispatch(const std::unordered_map<uint16_t, opcode_func>& table, std::function<uint16_t(const decoded_opcode&)> extractor) {
+    return [&table, extractor](chip8& c8, const decoded_opcode& decoded) {
+        const uint16_t key = extractor(decoded);
+        const auto it = table.find(key);
         if (it != table.end()) {
             it->second(c8, decoded);
         }
@@ -324,17 +325,13 @@ void opcode::op_Fx07(chip8& c8, const decoded_opcode decoded) {
 // wait for a key press, store the value of the key in Vx
 // if there is no key press, the program counter doesn't change and the instruction is repeated
 void opcode::op_Fx0A(chip8& c8, const decoded_opcode decoded) {
-    bool key_pressed = false;
     for (uint8_t i = 0; i < 16; ++i) {
         if (c8.key_[i] != 0) {
             c8.v_[decoded.x] = i;
-            key_pressed = true;
-            break;
+            exec_next_instruction(c8);
+            return;
         }
     }
-
-    if (key_pressed)
-        exec_next_instruction(c8);
 }
 
 // set delay timer = Vx
@@ -372,7 +369,7 @@ void opcode::op_Fx33(chip8& c8, const decoded_opcode decoded) {
 
 // store registers V0 through Vx in memory starting at location I
 void opcode::op_Fx55(chip8& c8, const decoded_opcode decoded) {
-    uint8_t x = decoded.x;
+	const uint8_t x = decoded.x;
     for (int i = 0; i <= x; i++)
         c8.memory_[c8.i_ + i] = c8.v_[i];
 
@@ -381,7 +378,7 @@ void opcode::op_Fx55(chip8& c8, const decoded_opcode decoded) {
 
 // read registers V0 through Vx from memory starting at location I
 void opcode::op_Fx65(chip8& c8, const decoded_opcode decoded) {
-    uint8_t x = decoded.x;
+	const uint8_t x = decoded.x;
     for (int i = 0; i <= x; i++)
         c8.v_[i] = c8.memory_[c8.i_ + i];
 
